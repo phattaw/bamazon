@@ -44,28 +44,24 @@ connection.connect(function(err) {
   startBamazon();
 });
 
-async function startBamazon() {
-    printEverything().then( () => {
-        askQuestion();
-    });
+function startBamazon() {
+    printEverything();
 }
 
 // 5. Running this application will first display all of the items available for sale. 
 //Include the ids, names, and prices of products for sale.
 function printEverything() {
-return new Promise(resolve => {
-    connection.query(buildSelectQuery("*", "products"), function(err, res) {
-        if (err) throw err;
-        for(let i = 0; i < res.length; i++) {
-            console.log(`Item ID: ${res[i].item_id}`);
-            console.log(`Product Name: ${res[i].product_name}`);
-            console.log(`Department Name: ${res[i].department_name}`);
-            console.log(`Price: ${res[i].price}`);
-            console.log(`Stock quantity: ${res[i].stock_quantity}`);
-            console.log('-------------------------------------------------------');
-        }
-        resolve();
-    });
+connection.query(buildSelectQuery("*", "products"), function(err, res) {
+    if (err) throw err;
+    for(let i = 0; i < res.length; i++) {
+        console.log(`Item ID: ${res[i].item_id}`);
+        console.log(`Product Name: ${res[i].product_name}`);
+        console.log(`Department Name: ${res[i].department_name}`);
+        console.log(`Price: ${res[i].price}`);
+        console.log(`Stock quantity: ${res[i].stock_quantity}`);
+        console.log('-------------------------------------------------------');
+    }
+    askQuestion(res.length);
 });
 }
 
@@ -73,33 +69,39 @@ function buildSelectQuery(field, database) {
     return(`SELECT ${field} FROM ${database}`);
 }
 
-function processSale(potentialSale) {
-connection.query(`SELECT item_id, stock_quantity 
-                    FROM products 
-                    WHERE item_id=${potentialSale.product_id};`, function(err, res) {
-    if (err) throw err;
+function processSale(potentialSale, totalItems) {
 
-    // 7. Once the customer has placed the order, your application should check if your 
-    // store has enough of the product to meet the customer's request.
-    if(res[0].stock_quantity > potentialSale.units) {
-        // 8. However, if your store _does_ have enough of the product, you should fulfill 
-        //      the customer's order.
-        //    * This means updating the SQL database to reflect the remaining quantity.
-        //    * Once the update goes through, show the customer the total cost of their purchase.
-        let updatedQuantity = res[0].stock_quantity - potentialSale.units;
+if(totalItems >= potentialSale.product_id) {
+    connection.query(`SELECT item_id, stock_quantity 
+                        FROM products 
+                        WHERE item_id=${potentialSale.product_id};`, function(err, res) {
+        if (err) throw err;
 
-        connection.query(`UPDATE products
-            SET stock_quantity = ${updatedQuantity}
-            WHERE item_id = ${potentialSale.product_id};`, function(err, res) {
+        // 7. Once the customer has placed the order, your application should check if your 
+        // store has enough of the product to meet the customer's request.
+        if(res[0].stock_quantity > potentialSale.units) {
+            // 8. However, if your store _does_ have enough of the product, you should fulfill 
+            //      the customer's order.
+            //    * This means updating the SQL database to reflect the remaining quantity.
+            //    * Once the update goes through, show the customer the total cost of their purchase.
+            let updatedQuantity = res[0].stock_quantity - potentialSale.units;
+
+            connection.query(`UPDATE products
+                SET stock_quantity = ${updatedQuantity}
+                WHERE item_id = ${potentialSale.product_id};`, function(err, res) {
+                startBamazon();
+            });
+        // If not, the app should log a phrase like `Insufficient quantity!`, 
+        // and then prevent the order from going through.
+        } else {
+            console.log(`Not enough product. Wanted ${potentialSale.units} where only ${res[0].stock_quantity} was available.`)
             startBamazon();
-        });
-    // If not, the app should log a phrase like `Insufficient quantity!`, 
-    // and then prevent the order from going through.
-    } else {
-        console.log(`Not enough product. Wanted ${potentialSale.units} where only ${res[0].stock_quantity} was available.`)
-        startBamazon();
-    }
-});
+        }
+    });
+} else {
+    console.log(`Please enter a valid number up to ${totalItems}`);
+    startBamazon();
+}
 }
 
 // constructor function used to create programmer objects
@@ -111,7 +113,7 @@ function PotentialSale(product_id, units) {
 // 6. The app should then prompt users with two messages.
 //    * The first should ask them the ID of the product they would like to buy.
 //    * The second message should ask how many units of the product they would like to buy.
-var askQuestion = function() {
+function askQuestion(totalItems) {
     inquirer.prompt([
       {
         name: "product_id",
@@ -126,7 +128,7 @@ var askQuestion = function() {
             answers.product_id,
             answers.units );
 
-        processSale(potentialSale);
+        processSale(potentialSale, totalItems);
     });
 };
 

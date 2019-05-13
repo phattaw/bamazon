@@ -22,28 +22,8 @@ connection.connect(function (err) {
     startBamazon();
 });
 
-async function startBamazon() {
-    console.log('startBamazon');
+function startBamazon() {
     askQuestion();
-}
-
-// 5. Running this application will first display all of the items available for sale. 
-//Include the ids, names, and prices of products for sale.
-function printEverything() {
-    return new Promise(resolve => {
-        connection.query(buildSelectQuery("*", "products"), function (err, res) {
-            if (err) throw err;
-            for (let i = 0; i < res.length; i++) {
-                console.log(`Item ID: ${res[i].item_id}`);
-                console.log(`Product Name: ${res[i].product_name}`);
-                console.log(`Department Name: ${res[i].department_name}`);
-                console.log(`Price: ${res[i].price}`);
-                console.log(`Stock quantity: ${res[i].stock_quantity}`);
-                console.log('-------------------------------------------------------');
-            }
-            resolve();
-        });
-    });
 }
 
 function buildSelectQuery(field, database) {
@@ -51,13 +31,10 @@ function buildSelectQuery(field, database) {
 }
 
 function processSale(potentialSale) {
-    console.log("processSale");
     connection.query(`SELECT item_id, stock_quantity 
                     FROM products 
                     WHERE item_id=${potentialSale.product_id};`, function (err, res) {
             if (err) throw err;
-
-            console.log(potentialSale);
 
             // 7. Once the customer has placed the order, your application should check if your 
             // store has enough of the product to meet the customer's request.
@@ -85,7 +62,7 @@ function processSale(potentialSale) {
 // 6. The app should then prompt users with two messages.
 //    * The first should ask them the ID of the product they would like to buy.
 //    * The second message should ask how many units of the product they would like to buy.
-async function askQuestion() {
+function askQuestion() {
     //   * List a set of menu options:
 
     inquirer.prompt([
@@ -100,8 +77,6 @@ async function askQuestion() {
             ]
         }
     ]).then(function (answers) {
-        console.log(answers);
-
         switch (answers.selection) {
             case "View Products for Sale":
                 viewProducts().then(() => {
@@ -121,8 +96,6 @@ async function askQuestion() {
                 console.log(`Add support for ${answers.selection}`)
                 break;
         }
-
-        // processSale(potentialSale);
     });
 };
 
@@ -196,19 +169,28 @@ inquirer.prompt([
 }
 
 function modifyInventory(inventoryToAdd) {
-console.log(inventoryToAdd);
-connection.query(`SELECT item_id, stock_quantity 
-FROM products 
-WHERE item_id=${inventoryToAdd.product_id};`, function (err, res) {
+connection.query(buildSelectQuery("*", "products"), function (err, res) {
     if (err) throw err;
 
-    let totalStock = parseInt(res[0].stock_quantity) + parseInt(inventoryToAdd.units);
+    let totalItems = res.length;
+    if(totalItems >= inventoryToAdd.product_id && inventoryToAdd.product_id > 0) {
+        connection.query(`SELECT item_id, stock_quantity 
+        FROM products 
+        WHERE item_id=${inventoryToAdd.product_id};`, function (err, res) {
+            if (err) throw err;
 
-    connection.query(`UPDATE products
-        SET stock_quantity = ${totalStock}
-        WHERE item_id = ${inventoryToAdd.product_id};`, function (err, res) {
-            startBamazon();
-    });
+            let totalStock = parseInt(res[0].stock_quantity) + parseInt(inventoryToAdd.units);
+
+            connection.query(`UPDATE products
+                SET stock_quantity = ${totalStock}
+                WHERE item_id = ${inventoryToAdd.product_id};`, function (err, res) {
+                    startBamazon();
+            });
+        });
+    } else {
+        console.log(`Please select a valid product ID between 1 and ${totalItems}`)
+        startBamazon();
+    }
 });
 }
 
@@ -253,7 +235,6 @@ inquirer.prompt([
 }
 
 function addNewProduct(newProductInfo) {
-    console.log(newProductInfo);
     connection.query(`INSERT INTO products (product_name, department_name, price, stock_quantity)
     VALUES ("${newProductInfo.productName}", "${newProductInfo.departmentName}", ${newProductInfo.price}, ${newProductInfo.units});
     `, function(err, res) {
