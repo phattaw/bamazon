@@ -8,9 +8,6 @@
 // sales across your store's departments and then provide a summary of the highest-grossing 
 // departments in the store.
 
-// Make sure you save and require the MySQL and Inquirer npm packages in your homework 
-// files--your app will need them for data input and storage.
-
 // ## Submission Guide
 
 // This time, though, you need to include screenshots, a gif, and/or a video showing us that you got the app working with no bugs. You can include these screenshots or a link to a video in a `README.md` file.
@@ -71,7 +68,7 @@ function buildSelectQuery(field, database) {
 
 function processSale(potentialSale, totalItems) {
 
-if(totalItems >= potentialSale.product_id) {
+if(totalItems >= potentialSale.product_id && potentialSale.product_id > 0) {
     connection.query(`SELECT item_id, stock_quantity 
                         FROM products 
                         WHERE item_id=${potentialSale.product_id};`, function(err, res) {
@@ -79,7 +76,7 @@ if(totalItems >= potentialSale.product_id) {
 
         // 7. Once the customer has placed the order, your application should check if your 
         // store has enough of the product to meet the customer's request.
-        if(res[0].stock_quantity > potentialSale.units) {
+        if(res[0].stock_quantity > potentialSale.units && potentialSale.units > 0) {
             // 8. However, if your store _does_ have enough of the product, you should fulfill 
             //      the customer's order.
             //    * This means updating the SQL database to reflect the remaining quantity.
@@ -94,12 +91,16 @@ if(totalItems >= potentialSale.product_id) {
         // If not, the app should log a phrase like `Insufficient quantity!`, 
         // and then prevent the order from going through.
         } else {
-            console.log(`Not enough product. Wanted ${potentialSale.units} where only ${res[0].stock_quantity} was available.`)
+            if(potentialSale.units > 0) {
+                console.log(`Not enough product. Wanted ${potentialSale.units} where only ${res[0].stock_quantity} was available.`);
+            } else {
+                console.log(`Purchasing requires ordering at least one item.`);
+            }
             startBamazon();
         }
     });
 } else {
-    console.log(`Please enter a valid number up to ${totalItems}`);
+    console.log(`Please enter a valid ID from 1 to ${totalItems}`);
     startBamazon();
 }
 }

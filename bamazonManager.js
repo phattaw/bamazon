@@ -30,34 +30,6 @@ function buildSelectQuery(field, database) {
     return (`SELECT ${field} FROM ${database}`);
 }
 
-function processSale(potentialSale) {
-    connection.query(`SELECT item_id, stock_quantity 
-                    FROM products 
-                    WHERE item_id=${potentialSale.product_id};`, function (err, res) {
-            if (err) throw err;
-
-            // 7. Once the customer has placed the order, your application should check if your 
-            // store has enough of the product to meet the customer's request.
-            if (res[0].stock_quantity > potentialSale.units) {
-                // 8. However, if your store _does_ have enough of the product, you should fulfill 
-                //      the customer's order.
-                //    * This means updating the SQL database to reflect the remaining quantity.
-                //    * Once the update goes through, show the customer the total cost of their purchase.
-                let updatedQuantity = res[0].stock_quantity - potentialSale.units;
-
-                connection.query(`UPDATE products
-            SET stock_quantity = ${updatedQuantity}
-            WHERE item_id = ${potentialSale.product_id};`, function (err, res) {
-                        startBamazon();
-                    });
-                // If not, the app should log a phrase like `Insufficient quantity!`, 
-                // and then prevent the order from going through.
-            } else {
-                console.log(`Not enough product. Wanted ${potentialSale.units} where only ${res[0].stock_quantity} was available.`)
-                startBamazon();
-            }
-        });
-}
 
 // 6. The app should then prompt users with two messages.
 //    * The first should ask them the ID of the product they would like to buy.
@@ -173,7 +145,7 @@ connection.query(buildSelectQuery("*", "products"), function (err, res) {
     if (err) throw err;
 
     let totalItems = res.length;
-    if(totalItems >= inventoryToAdd.product_id && inventoryToAdd.product_id > 0) {
+    if(totalItems >= inventoryToAdd.product_id && inventoryToAdd.product_id > 0 && inventoryToAdd.units > 0) {
         connection.query(`SELECT item_id, stock_quantity 
         FROM products 
         WHERE item_id=${inventoryToAdd.product_id};`, function (err, res) {
@@ -188,7 +160,11 @@ connection.query(buildSelectQuery("*", "products"), function (err, res) {
             });
         });
     } else {
-        console.log(`Please select a valid product ID between 1 and ${totalItems}`)
+        if(inventoryToAdd.units > 0) {
+            console.log(`Please select a valid product ID between 1 and ${totalItems}`)
+        } else {
+            console.log(`Please select a value greater than zero for the amount of product to add`)
+        }
         startBamazon();
     }
 });
